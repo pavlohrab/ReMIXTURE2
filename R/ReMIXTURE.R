@@ -68,22 +68,59 @@ require(magrittr)
 ###################################################################################################################################
 ##################################################### Main Class ##################################################################
 ###################################################################################################################################
+
 ReMIXTURE <- R6::R6Class(
-
-
 
   ################# Public ################
   public = list(
-    initialize = function(distance_matrix,colour_table=NULL){ #constructor, overrides self$new
-      #call validators for dm and cm if they exist
+    initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
+      browser()
+
+      if( #lower triangular dm --- fill
+        all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
+      ){
+        warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
+        dm[lower.tri(dm)] <- dm[upper.tri(dm)]
+      }
+
+      if( #upper triangular dm --- fill
+        !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
+      ){
+        warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
+        dm[upper.tri(dm)] <- dm[lower.tri(dm)]
+      }
+
+
+
+
+      #call validators for dm and it if they exist
+      validate_dm(distance_matrix)
+      if( !is.null(info_table) ){
+        validate_it(info_table)
+      } else {
+        warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
+      }
+
+
     },
-    run = function(resample=F){
+
+
+
+    run = function(iterations=1000,resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
-      # if resample==T, then
+      # if resample==T, then run the resampling stuff too
     },
+
+
+
+
     plot_heatmap = function(){
       #produce plots
     },
+
+
+
+
     plot_maps = function(){
       #check
       #produce plots
@@ -92,20 +129,51 @@ ReMIXTURE <- R6::R6Class(
 
 
 
+
   ################# Private ################
   private = list(
-    dm = matrix(), #a distance matrix with rownames and colnames giving regions
-    it = data.table(), #an info table with columns "region", "lat" , "long" , and optionally "colour"
+    dm = matrix(), # a distance matrix with rownames and colnames giving regions
+    it = data.table(), # an info table with columns "region", "lat" , "long" , and optionally "colour"
+    iterations = NA_integer_, # a record of the number of iterations used for the
     validate_dm = function(in_dm){
       #check matrix is a legit distance matrix
+      if( !is.matrix(in_dm) ){
+        stop( paste0("Argument to distance_matrix must be a matrix (class(in_dm)==",class((in_dm)),")") )
+      }
+      if( ncol(in_dm) != nrow(in_dm) ){
+        stop( paste0("Argument to distance_matrix must be a square matrix") )
+      }
+
+      #check zeroes on diagonal
+      if( !all(in_dm[diag(in_dm)]==0) ){
+        stop("Self-distance (i.e. distance matrix diagonals) should always be zero")
+      }
+
+      #check rows and columns are the same
+      sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) })
+
       #if matrix is triangular, fix it
+      #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
+      if (is.null(colnames(in_dm) | is.null(rownames(in_dm)))){
+        stop( "Column and row names of input matrix must provide region information" )
+      }
+      if( !all(colnames(in_dm) == colnames(in_dm)) ) {
+        stop( "Column and row names of input matrix must be the same" )
+      }
+
+      return(TRUE)
     },
     validate_it = function(in_it){
       #check all columns "region", "lat" , "long" present and character/numeric/numeric
       #if colour not present, auto-fill and
+      if( is.null(info_table$col) ){ # No colours provided --- assign!
+        warning("No colour column in info_table provided. Colour will be manually added.")
+        info_table[ , col := replace_levels_with_colours(region) ]
+      }
     },
-    counts = data.table()
+    raw_out = data.table(), #raw output from sampling
+    counts = data.table() #(normalised, prefereably) count data from sampling
   ),
 
 
@@ -118,15 +186,16 @@ ReMIXTURE <- R6::R6Class(
       if(missing(in_dm)){
         dm
       } else {
-        #get angry at user. dm is read-only
+        warning("Distance matrix cannot be set after initialisation")
       }
     },
     info_table = function(in_it){
       if(missing(in_it)){
-        it
-      } else {
-        1
-        #validate and replace private$ct
+        return(it)
+      } else { #validate and replace private$ct
+        if( validate_it(in_it) ) {
+          private$it <- in_it
+        }
       }
     }
   )
@@ -162,21 +231,25 @@ ReMIXTURE <- R6::R6Class(
 #################### WORKSPACE ########################
 
 
-setwd("") #set as appropriate
+#setwd("") #set as appropriate
 source("https://raw.githubusercontent.com/mtrw/tim_r_functions/master/tim_functions.R") #will also load some required packages and convenience functions.
 library(ggspatial)
 library(rnaturalearth)
 library(pheatmap)
 
-
-dm <- readRDS("MATRIX.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
+dm <- readRDS("C://Users/Tim/Dropbox/remixture_data/dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
 dm[lower.tri(dm)] <- dm[upper.tri(dm)] #assure it's symmetrical
+
+
+all(colnames(dm)==rownames(dm)) #should be true
+gpcol <- colnames(dm)
+gplist <- data.table(region=colnames(dm))[,.N,by=.(region)]
 
 #index the positions of each region group
 gplist$offset <- c(0,rle(gpcol)$lengths) %>% `[`(-length(.)) %>% cumsum %>% `+`(1)
 gplist[,idx:=1:.N]
 
-nits <- 1000 #SET: how many iterations?
+nits <- 200 #SET: how many iterations?
 sampsize <- (min(table(gpcol)) * (2/3)) %>% round #SET: how many samples per iteration (from each region)
 
 #set up some vectors to store info later
@@ -187,13 +260,13 @@ rawoutput <- data.table( #to store raw output each iteration
   p2 = character(length=outsize),
   dist = numeric(length=outsize),
   iteration = integer(length=outsize)
-
 )
 insert <- 1 #a flag
 
 #run the iterations
 for(iteration in 1:nits){
   #fill the `select` vector
+  #dev iteration = 1
   gplist[,{
     select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
   },by="idx"] %>% invisible
@@ -214,7 +287,7 @@ for(iteration in 1:nits){
 }
 
 #summarise the output
-counts <- rawoutput[ , .(count=.N) , by=.(p1,p2) ]
+counts <- rawoutput[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]
 
 #look at the raw counts ("summary") matrix to check it all seems to have gone ok
 dcast(counts,formula=p1~p2,value.var="count")
@@ -242,7 +315,7 @@ hmplot
 # dev.off()
 
 #significance testing by resampling from the raw output
-nits <- 1000 #SET: How many samples
+nits <- 50 #SET: How many samples
 samplesize <- nu(rawoutput$iteration)*0.1 #SET: How many items to sample each time
 nrowsit <- (nu(rawoutput$p1)**2)
 nrowsout <- nrowsit*nits
@@ -284,7 +357,7 @@ itcount
 
 #Table of lat("y")/long("x") positions for each region, and their chosen colour for the plot (recommend hex format [https://www.google.com/search?q=color+picker]). Format (example):
 
-centres <- fread("REGIONS.csv",col.names=c("region","x","y","col"))
+centres <- fread("C://Users/Tim/Dropbox/remixture_data/geo_centres.csv",col.names=c("region","x","y","col"))
 world <- ne_countries(scale = "medium", returnclass = "sf")
 circle <- function(x=0,y=0,rad=1,n_pts=200){
   theta <- seq(from=0,to=((2*pi)-(2*pi)/n_pts),length.out=n_pts)
@@ -310,11 +383,15 @@ cdat <- ldply(1:nrow(centres),function(i){
   c[,region:=centres$region[i]]
 }) %>% setDT
 
+cdat[region=="Africa"]
+
 #Check they plot ok. Use to adjust colours and sizes
-p + geom_spatial_polygon(data=cdat,aes(x=x,y=y,fill=region,group=region),alpha=0.8) #May generate a harmless warning for leaving a stat_spatial_identity() argument default
+#p + geom_spatial_polygon(data=cdat[c((.N-199):.N)],aes(x=x,y=y,fill=region,group=region),alpha=0.8) #May generate a harmless warning for leaving a stat_spatial_identity() argument default
 
 #Normalise the nearest-neighbour counts (not strictly necessary but, for sanity purposes)
 cnormed[,id:=1:.N]
+
+
 cnormed <- centres[,.(p1=region,x1=x,y1=y)][cnormed,on="p1"]
 cnormed <- centres[,.(p2=region,x2=x,y2=y)][cnormed,on="p2"]
 
@@ -324,9 +401,10 @@ ldat <- cnormed[p1 != p2][, data.table(
   x = c(x1,x2),
   y = c(y1,y2),
   count = as.numeric(rep(prop,2))
-) ,by="id"]
+) , by="id" ]
 
 #Do the plots
+setkey(ldat,region)
 for(i in unique(ldat$region)){
   P <- p +
     geom_spatial_path(data=ldat[region==i],aes(x=y,y=x,alpha=count,size=count),colour=centres[region==i]$col,lineend="round") +
