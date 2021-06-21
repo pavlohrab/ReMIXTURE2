@@ -460,3 +460,24 @@ print(P)
 
 
 
+
+
+#################### WORKSPACE ########################
+
+
+setwd("") #set as appropriate
+
+### IMPORTED FUNCTIONS #####################################################
+ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
+nu <-function(x){
+  unique(x) %>% length
+}
+scale_between <- function(x,lower,upper){
+  if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
+  ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
+}
+
+
+############################################################################
+
+
