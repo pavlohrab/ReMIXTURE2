@@ -163,10 +163,25 @@ ReMIXTURE <- R6::R6Class(
 
 
 setwd("") #set as appropriate
-source("https://raw.githubusercontent.com/mtrw/tim_r_functions/master/tim_functions.R") #will also load some required packages and convenience functions.
+#source("https://raw.githubusercontent.com/mtrw/tim_r_functions/master/tim_functions.R") #will also load some required packages and convenience functions.
 library(ggspatial)
 library(rnaturalearth)
 library(pheatmap)
+library(rnaturalearthdata)
+library(data.table)
+library(rgeos)
+
+### INPORTED FUNCTIONS
+ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
+nu <-function(x){
+  unique(x) %>% length
+}
+scale_between <- function(x,lower,upper){
+  if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
+  ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
+}
+
+
 
 
 dm <- readRDS("MATRIX.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
