@@ -62,8 +62,57 @@ sayname <- function(x="nothing") {
 require(R6)
 require(data.table)
 require(magrittr)
+require(plyr)
+require(ggplot2)
+require(data.table)
+require(sp)
+require(rgdal)
+require(ggspatial)
+require(rnaturalearth)
+require(pheatmap)
+require(rnaturalearthdata)
+require(colorspace)
 
 
+
+
+
+### IMPORTED FUNCTIONS #####################################################
+ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
+nu <-function(x){
+  unique(x) %>% length
+}
+scale_between <- function(x,lower,upper){
+  if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
+  ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
+}
+
+replace_levels_with_colours <- function(x,palette="Berlin",alpha=1,fun="diverge_hcl",plot=FALSE,newplot=TRUE){
+  require(colorspace)
+  n <- nu(x[!is.na(x)])
+  cols <- match.fun(fun)(n,palette = palette,alpha = alpha)
+  colvec <- swap( x , unique(x[!is.na(x)]) , cols , na.replacement = NA )
+  if(plot==FALSE) {
+    return(colvec)
+  } else {
+    # null_plot(y=1:length(cols),x=rep(1,length(cols)),xaxt="n",yaxt="n")
+    # text(y=1:length(cols),x=rep(1,length(cols)),labels=unique(x),col=cols)
+    if(newplot) {null_plot(x=0,y=0,xaxt="n",yaxt="n",bty="n")}
+    legend(x="topleft",legend=unique(x[!is.na(x)]),fill=cols,text.col=cols)
+  }
+}
+swap <- function(vec,matches,names,na.replacement=NA){
+  orig_vec <- vec
+  #if(sum(! matches %in% names ) > 0 ) { stop("Couldn't find all matches in names") }
+  if(length(matches) != length(names)) { stop("Lengths of `matches` and `names` vectors don't match, you old bison!") }
+  if(is.factor(vec)) { levels(vec) <- c(levels(vec),names,na.replacement) }
+  vec[is.na(orig_vec)] <- na.replacement
+  l_ply( 1:length(matches) , function(n){
+    vec[orig_vec==matches[n]] <<- names[n]
+  })
+  vec
+}
+############################################################################
 
 ###################################################################################################################################
 ##################################################### Main Class ##################################################################
@@ -231,13 +280,7 @@ ReMIXTURE <- R6::R6Class(
 #################### WORKSPACE ########################
 
 
-#setwd("") #set as appropriate
-source("https://raw.githubusercontent.com/mtrw/tim_r_functions/master/tim_functions.R") #will also load some required packages and convenience functions.
-library(ggspatial)
-library(rnaturalearth)
-library(pheatmap)
-
-dm <- readRDS("C://Users/Tim/Dropbox/remixture_data/dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
+dm <- readRDS("../../dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
 dm[lower.tri(dm)] <- dm[upper.tri(dm)] #assure it's symmetrical
 
 
@@ -249,7 +292,7 @@ gplist <- data.table(region=colnames(dm))[,.N,by=.(region)]
 gplist$offset <- c(0,rle(gpcol)$lengths) %>% `[`(-length(.)) %>% cumsum %>% `+`(1)
 gplist[,idx:=1:.N]
 
-nits <- 200 #SET: how many iterations?
+nits <- 10 #SET: how many iterations?
 sampsize <- (min(table(gpcol)) * (2/3)) %>% round #SET: how many samples per iteration (from each region)
 
 #set up some vectors to store info later
@@ -357,7 +400,7 @@ itcount
 
 #Table of lat("y")/long("x") positions for each region, and their chosen colour for the plot (recommend hex format [https://www.google.com/search?q=color+picker]). Format (example):
 
-centres <- fread("C://Users/Tim/Dropbox/remixture_data/geo_centres.csv",col.names=c("region","x","y","col"))
+centres <- fread("../../geo_centres.csv",col.names=c("region","x","y","col"))
 world <- ne_countries(scale = "medium", returnclass = "sf")
 circle <- function(x=0,y=0,rad=1,n_pts=200){
   theta <- seq(from=0,to=((2*pi)-(2*pi)/n_pts),length.out=n_pts)
@@ -443,41 +486,4 @@ print(P)
 # pdf("ReMIXTURE_geospatial_jux.pdf",height=5,width=5,onefile = TRUE)
 # print(P)
 # dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#################### WORKSPACE ########################
-
-
-setwd("") #set as appropriate
-
-### IMPORTED FUNCTIONS #####################################################
-ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
-nu <-function(x){
-  unique(x) %>% length
-}
-scale_between <- function(x,lower,upper){
-  if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
-  ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
-}
-
-
-############################################################################
-
 
