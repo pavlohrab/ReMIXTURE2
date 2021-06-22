@@ -17,7 +17,16 @@ Suggests:
     knitr
 VignetteBuilder: knitr
 Imports:
-    Rcpp,
-    reshape2
-LinkingTo: 
-    Rcpp
+    data.table,
+    magrittr,
+    plyr,
+    R6,
+    ggplot2,
+    sp,
+    rgdal,
+    ggspatial,
+    rnaturalearth,
+    rnaturalearthdata,
+    pheatmap,
+    colorspace
+    
