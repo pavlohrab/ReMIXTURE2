@@ -59,11 +59,64 @@ sayname <- function(x="nothing") {
 ###################################################################################################################################
 
 
-require(R6)
-require(data.table)
-require(magrittr)
+#require(R6)
+#require(data.table)
+#require(magrittr)
+#require(plyr)
+#require(ggplot2)
+#require(data.table)
+#require(sp)
+#require(rgdal)
+#require(ggspatial)
+#require(rnaturalearth)
+#require(pheatmap)
+#require(rnaturalearthdata)
+#require(colorspace)
+
+`%>%` <- magrittr::`%>%`
+`data.table` <- data.table::`data.table`
 
 
+
+### IMPORTED FUNCTIONS #####################################################
+ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
+nu <-function(x){
+  unique(x) %>% length
+}
+scale_between <- function(x,lower,upper){
+  if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
+  ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
+}
+
+replace_levels_with_colours <- function(x,palette="Berlin",alpha=1,fun="diverge_hcl",plot=FALSE,newplot=TRUE){
+  #require(colorspace)
+  n <- nu(x[!is.na(x)])
+  cols <- match.fun(fun)(n,palette = palette,alpha = alpha)
+  colvec <- swap( x , unique(x[!is.na(x)]) , cols , na.replacement = NA )
+  if(plot==FALSE) {
+    return(colvec)
+  } else {
+    # null_plot(y=1:length(cols),x=rep(1,length(cols)),xaxt="n",yaxt="n")
+    # text(y=1:length(cols),x=rep(1,length(cols)),labels=unique(x),col=cols)
+    if(newplot) {null_plot(x=0,y=0,xaxt="n",yaxt="n",bty="n")}
+    legend(x="topleft",legend=unique(x[!is.na(x)]),fill=cols,text.col=cols)
+  }
+}
+swap <- function(vec,matches,names,na.replacement=NA){
+  orig_vec <- vec
+  #if(sum(! matches %in% names ) > 0 ) { stop("Couldn't find all matches in names") }
+  if(length(matches) != length(names)) { stop("Lengths of `matches` and `names` vectors don't match, you old bison!") }
+  if(is.factor(vec)) { levels(vec) <- c(levels(vec),names,na.replacement) }
+  vec[is.na(orig_vec)] <- na.replacement
+  plyr::l_ply( 1:length(matches) , function(n){
+    vec[orig_vec==matches[n]] <<- names[n]
+  })
+  vec
+}
+null_plot <- function(x,y,xlab=NA,ylab=NA,...){
+  plot(NULL,xlim=range(x,na.rm=T),ylim=range(y,na.rm=T),xlab=xlab,ylab=ylab,...)
+}
+############################################################################
 
 ###################################################################################################################################
 ##################################################### Main Class ##################################################################
@@ -94,9 +147,9 @@ ReMIXTURE <- R6::R6Class(
 
 
       #call validators for dm and it if they exist
-      validate_dm(distance_matrix)
+      private$validate_dm(distance_matrix)
       if( !is.null(info_table) ){
-        validate_it(info_table)
+        private$validate_it(info_table)
       } else {
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
@@ -133,7 +186,7 @@ ReMIXTURE <- R6::R6Class(
   ################# Private ################
   private = list(
     dm = matrix(), # a distance matrix with rownames and colnames giving regions
-    it = data.table(), # an info table with columns "region", "lat" , "long" , and optionally "colour"
+    it = data.table::data.table(), # an info table with columns "region", "lat" , "long" , and optionally "colour"
     iterations = NA_integer_, # a record of the number of iterations used for the
     validate_dm = function(in_dm){
       #check matrix is a legit distance matrix
@@ -144,6 +197,12 @@ ReMIXTURE <- R6::R6Class(
         stop( paste0("Argument to distance_matrix must be a square matrix") )
       }
 
+      #check if there is NAs or Inf on a diag. Convert to zeroes
+      if (all(is.na(diag(in_dm)))){
+        diag(in_dm) <- 0
+      } else if (all(is.infinite(diag(in_dm)))){
+        diag(in_dm) <- 0
+      }
       #check zeroes on diagonal
       if( !all(in_dm[diag(in_dm)]==0) ){
         stop("Self-distance (i.e. distance matrix diagonals) should always be zero")
@@ -154,7 +213,7 @@ ReMIXTURE <- R6::R6Class(
 
       #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
-      if (is.null(colnames(in_dm) | is.null(rownames(in_dm)))){
+      if (is.null(colnames(in_dm)) | is.null(rownames(in_dm))){
         stop( "Column and row names of input matrix must provide region information" )
       }
       if( !all(colnames(in_dm) == colnames(in_dm)) ) {
@@ -204,58 +263,31 @@ ReMIXTURE <- R6::R6Class(
 
 
 )
-###################################################################################################################################
-##################################################### \Main Class #################################################################
-###################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 #################### WORKSPACE ########################
 
 
-#setwd("") #set as appropriate
-source("https://raw.githubusercontent.com/mtrw/tim_r_functions/master/tim_functions.R") #will also load some required packages and convenience functions.
-library(ggspatial)
-library(rnaturalearth)
-library(pheatmap)
-
-dm <- readRDS("C://Users/Tim/Dropbox/remixture_data/dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
+dm <- readRDS("../../dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
 dm[lower.tri(dm)] <- dm[upper.tri(dm)] #assure it's symmetrical
 
 
 all(colnames(dm)==rownames(dm)) #should be true
 gpcol <- colnames(dm)
-gplist <- data.table(region=colnames(dm))[,.N,by=.(region)]
+gplist <- data.table::data.table(region=colnames(dm))[,.N,by=.(region)]
 
 #index the positions of each region group
 gplist$offset <- c(0,rle(gpcol)$lengths) %>% `[`(-length(.)) %>% cumsum %>% `+`(1)
 gplist[,idx:=1:.N]
 
-nits <- 200 #SET: how many iterations?
+nits <- 10 #SET: how many iterations?
 sampsize <- (min(table(gpcol)) * (2/3)) %>% round #SET: how many samples per iteration (from each region)
 
 #set up some vectors to store info later
 outsize <- nits * sampsize * nrow(gplist)
 select <- vector(mode="integer",length=sampsize*nrow(gplist)) #to store a list of the randomly selected samples each iteration
-rawoutput <- data.table( #to store raw output each iteration
+rawoutput <- data.table::data.table( #to store raw output each iteration
   p1 = character(length=outsize),
   p2 = character(length=outsize),
   dist = numeric(length=outsize),
@@ -290,9 +322,9 @@ for(iteration in 1:nits){
 counts <- rawoutput[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]
 
 #look at the raw counts ("summary") matrix to check it all seems to have gone ok
-dcast(counts,formula=p1~p2,value.var="count")
+data.table::dcast(counts,formula=p1~p2,value.var="count")
 
-setorder(rawoutput,p1,p2,-dist)
+data.table::setorder(rawoutput,p1,p2,-dist)
 rawoutput[,idx:=1:.N,by=.(p1)]
 
 #saveRDS(counts,"COUNTS.Rds") #it's a good idea to save the output, these runs take a while
@@ -300,12 +332,12 @@ rawoutput[,idx:=1:.N,by=.(p1)]
 
 
 #heatmap
-cnormed <- copy(counts)[,prop:=count/sum(count),by=.(p1)]
+cnormed <- data.table::copy(counts)[,prop:=count/sum(count),by=.(p1)]
 cnormed[p1!=p2][order(prop)]
-cm <- as.matrix(dcast(cnormed,formula=p1~p2,value.var="prop")[,-"p1"])
+cm <- as.matrix(data.table::dcast(cnormed,formula=p1~p2,value.var="prop")[,-"p1"])
 dim(cm)
 rownames(cm) <- colnames(cm)
-hmplot <- pheatmap(cm,cluster_rows = F,cluster_cols = F)
+hmplot <- pheatmap::pheatmap(cm,cluster_rows = F,cluster_cols = F)
 hmplot
 
 #Run me to save it
@@ -320,7 +352,7 @@ samplesize <- nu(rawoutput$iteration)*0.1 #SET: How many items to sample each ti
 nrowsit <- (nu(rawoutput$p1)**2)
 nrowsout <- nrowsit*nits
 #to store output
-itcount <- data.table(
+itcount <- data.table::data.table(
   p1=character(length=nrowsout),
   p2=character(length=nrowsout),
   count=numeric(length=nrowsout),
@@ -333,7 +365,7 @@ for(it in 1:nits){
   ce("It: ",it)
   selectit <- sample(unique(rawoutput$iteration),samplesize)
 
-  fill <- setDT(expand.grid(p1=unique(rawoutput$p1),p2=unique(rawoutput$p2)))
+  fill <- data.table::setDT(expand.grid(p1=unique(rawoutput$p1),p2=unique(rawoutput$p2)))
   insert <- rawoutput[ iteration %in% selectit , .(count=.N,resamp=it) , by=.(p1,p2) ]
   insert <- insert[fill,on=.(p1,p2)]
   insert[is.na(count),count:=0]
@@ -357,8 +389,8 @@ itcount
 
 #Table of lat("y")/long("x") positions for each region, and their chosen colour for the plot (recommend hex format [https://www.google.com/search?q=color+picker]). Format (example):
 
-centres <- fread("C://Users/Tim/Dropbox/remixture_data/geo_centres.csv",col.names=c("region","x","y","col"))
-world <- ne_countries(scale = "medium", returnclass = "sf")
+centres <- data.table::fread("../../geo_centres.csv",col.names=c("region","x","y","col"))
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
 circle <- function(x=0,y=0,rad=1,n_pts=200){
   theta <- seq(from=0,to=((2*pi)-(2*pi)/n_pts),length.out=n_pts)
   data.table(
@@ -368,9 +400,9 @@ circle <- function(x=0,y=0,rad=1,n_pts=200){
 }
 
 #Plot the view of the globe. Use me to optimise the angle your globe will take (see geom_sf() help for details)
-p <- ggplot(data = world) +
-  geom_sf(lwd=0.05) +
-  coord_sf(crs = "+proj=laea +lat_0=30 +lon_0=0 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs ")
+p <- ggplot2::ggplot(data = world) +
+  ggplot2::geom_sf(lwd=0.05) +
+  ggplot2::coord_sf(crs = "+proj=laea +lat_0=30 +lon_0=0 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs ")
 p
 
 #create circle data
@@ -378,10 +410,13 @@ centres[,size:=counts[p1==region & p2==region]$count,by=region]
 centres[,size:=size %>% scale_between(2,7)]
 centres <- centres[!is.na(size)]
 
-cdat <- ldply(1:nrow(centres),function(i){
+############################################################################################
+## JUST FOR THIS BIT WE NEED TO EXPLICITLY EXPORT DATA.TABLE FROM DATA.TABLE::DATA.TABLE
+cdat <- plyr::ldply(1:nrow(centres),function(i){
   c <- circle(centres$x[i],centres$y[i],centres$size[i])
   c[,region:=centres$region[i]]
-}) %>% setDT
+}) %>% data.table::setDT()
+############################################################################################
 
 cdat[region=="Africa"]
 
@@ -404,12 +439,12 @@ ldat <- cnormed[p1 != p2][, data.table(
 ) , by="id" ]
 
 #Do the plots
-setkey(ldat,region)
+data.table::setkey(ldat,region)
 for(i in unique(ldat$region)){
   P <- p +
-    geom_spatial_path(data=ldat[region==i],aes(x=y,y=x,alpha=count,size=count),colour=centres[region==i]$col,lineend="round") +
-    geom_spatial_polygon(data=cdat[region==i],aes(x=x,y=y,group=region),fill=centres[region==i]$col) +
-    theme(legend.position = "none")
+    ggspatial::geom_spatial_path(data=ldat[region==i],ggspatial::aes(x=y,y=x,alpha=count,size=count),colour=centres[region==i]$col,lineend="round") +
+    ggspatial::geom_spatial_polygon(data=cdat[region==i],ggspatial::aes(x=x,y=y,group=region),fill=centres[region==i]$col) +
+    ggplot2::theme(legend.position = "none")
   print(P)
 }
 
@@ -433,9 +468,9 @@ ldat_top <- ldat[,.SD[order(-count)][1:(2*topn)],by="region"]
 P <- p
 for(i in unique(ldat_top$region)){
   P <- P +
-    geom_spatial_path(data=ldat_top[region==i],aes(x=y,y=x,alpha=count,size=count),lineend="round") +
+    ggspatial::geom_spatial_path(data=ldat_top[region==i],ggspatial::aes(x=y,y=x,alpha=count,size=count),lineend="round") +
     #geom_spatial_polygon(data=cdat[region==i],aes(x=x,y=y,group=region),fill="") +
-    theme(legend.position = "none")
+    ggplot2::theme(legend.position = "none")
 }
 print(P)
 #To plot :
@@ -443,41 +478,4 @@ print(P)
 # pdf("ReMIXTURE_geospatial_jux.pdf",height=5,width=5,onefile = TRUE)
 # print(P)
 # dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#################### WORKSPACE ########################
-
-
-setwd("") #set as appropriate
-
-### IMPORTED FUNCTIONS #####################################################
-ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
-nu <-function(x){
-  unique(x) %>% length
-}
-scale_between <- function(x,lower,upper){
-  if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
-  ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
-}
-
-
-############################################################################
-
 
