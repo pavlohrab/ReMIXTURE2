@@ -88,7 +88,7 @@ scale_between <- function(x,lower,upper){
 }
 
 replace_levels_with_colours <- function(x,palette="Berlin",alpha=1,fun="diverge_hcl",plot=FALSE,newplot=TRUE){
-  require(colorspace)
+  #require(colorspace)
   n <- nu(x[!is.na(x)])
   cols <- match.fun(fun)(n,palette = palette,alpha = alpha)
   colvec <- swap( x , unique(x[!is.na(x)]) , cols , na.replacement = NA )
@@ -111,6 +111,9 @@ swap <- function(vec,matches,names,na.replacement=NA){
     vec[orig_vec==matches[n]] <<- names[n]
   })
   vec
+}
+null_plot <- function(x,y,xlab=NA,ylab=NA,...){
+  plot(NULL,xlim=range(x,na.rm=T),ylim=range(y,na.rm=T),xlab=xlab,ylab=ylab,...)
 }
 ############################################################################
 
@@ -221,7 +224,7 @@ ReMIXTURE <- R6::R6Class(
         info_table[ , col := replace_levels_with_colours(region) ]
       }
     },
-    raw_out = data.table(), #raw output from sampling
+    raw_out =data.table(), #raw output from sampling
     counts = data.table() #(normalised, prefereably) count data from sampling
   ),
 
