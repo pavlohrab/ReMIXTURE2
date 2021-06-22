@@ -478,4 +478,3 @@ print(P)
 # pdf("ReMIXTURE_geospatial_jux.pdf",height=5,width=5,onefile = TRUE)
 # print(P)
 # dev.off()
-
