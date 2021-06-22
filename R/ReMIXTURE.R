@@ -154,6 +154,8 @@ ReMIXTURE <- R6::R6Class(
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
 
+      private$dm <- distance_matrix
+
 
     },
 
@@ -162,7 +164,87 @@ ReMIXTURE <- R6::R6Class(
     run = function(iterations=1000, resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
+      gpcol <- colnames(private$dm)
+      gplist <- data.table::data.table(region=colnames(private$dm))[,.N,by=.(region)]
 
+      #index the positions of each region group
+      gplist$offset <- c(0,rle(gpcol)$lengths) %>% `[`(-length(.)) %>% cumsum %>% `+`(1)
+      gplist[,idx:=1:.N]
+
+      sampsize <- (min(table(gpcol)) * (2/3)) %>% round #SET: how many samples per iteration (from each region)
+
+      #set up some vectors to store info later
+      outsize <- iterations * sampsize * nrow(gplist)
+      select <- vector(mode="integer",length=sampsize*nrow(gplist)) #to store a list of the randomly selected samples each iteration
+      private$raw_out <- data.table::data.table( #to store raw output each iteration
+        p1 = character(length=outsize),
+        p2 = character(length=outsize),
+        dist = numeric(length=outsize),
+        iteration = integer(length=outsize)
+      )
+      insert <- 1 #a flag
+
+      #run the iterations
+      for(iteration in 1:iterations){
+        #fill the `select` vector
+        #dev iteration = 1
+        gplist[,{
+          select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
+        },by="idx"] %>% invisible
+
+        #Find closest neighbours for the selected sample, store results in output table
+        rnum <- 1
+        #r = dm[select,select][1,]
+        apply(dm[select,select],1,function(r){
+          private$raw_out$p1[insert] <<- colnames(private$dm)[select][rnum]
+          private$raw_out$p2[insert] <<- colnames(private$dm)[select][which(r==min(r))[1]]
+          private$raw_out$dist[insert] <<- min(r)[1]
+          private$raw_out$iteration[insert] <<- iteration
+          rnum <<- rnum+1
+          insert <<- insert+1
+        }) %>% invisible
+
+        ce("% complete: ",(insert/outsize)*100)
+      }
+
+      #summarise the output
+      private$counts <- private$raw_out[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]
+      data.table::setorder(private$raw_out,p1,p2,-dist)
+      private$raw_out[,idx:=1:.N,by=.(p1)]
+
+      if (resample){
+        samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
+        nrowsit <- (nu(private$raw_out$p1)**2)
+        nrowsout <- nrowsit*iterations
+        #to store output
+        itcount <- data.table::data.table(
+          p1=character(length=nrowsout),
+          p2=character(length=nrowsout),
+          count=numeric(length=nrowsout),
+          resamp=numeric(length=nrowsout)
+        )
+
+        #perform resampling
+        for(it in 1:iterations){
+          #it <- 1
+          ce("It: ",it)
+          selectit <- sample(unique(private$raw_out$iteration),samplesize)
+
+          fill <- data.table::setDT(expand.grid(p1=unique(private$raw_out$p1),p2=unique(private$raw_out$p2)))
+          insert <- private$raw_out[ iteration %in% selectit , .(count=.N,resamp=it) , by=.(p1,p2) ]
+          insert <- insert[fill,on=.(p1,p2)]
+          insert[is.na(count),count:=0]
+          insert[is.na(resamp),resamp:=it]
+
+          itcount[(nrowsit*(it-1)+1):((nrowsit*(it-1))+nrow(insert))] <- insert
+        }
+
+        #summarise output
+        itcount[, pct:=(count/sum(count))*100 , by=.(resamp,p1) ]
+        itcount <- itcount[, .(sd_pct=sd(pct),mean_pct=mean(pct)) , by=.(p1,p2) ]
+        itcount[, description:=paste0( round(mean_pct-(2*sd_pct),digits=2)," (",round(mean_pct,digits=2),") ",round(mean_pct+(2*sd_pct),digits=2)  )  ]
+        private$resample <- itcount
+      }
     },
 
 
@@ -170,6 +252,12 @@ ReMIXTURE <- R6::R6Class(
 
     plot_heatmap = function(){
       #produce plots
+      cnormed <- data.table::copy(private$counts)[,prop:=count/sum(count),by=.(p1)]
+      cnormed[p1!=p2][order(prop)]
+      cm <- as.matrix(data.table::dcast(cnormed,formula=p1~p2,value.var="prop")[,-"p1"])
+      rownames(cm) <- colnames(cm)
+      hmplot <- pheatmap::pheatmap(cm,cluster_rows = F,cluster_cols = F)
+      return(hmplot)
     },
 
 
