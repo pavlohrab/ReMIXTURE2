@@ -197,6 +197,12 @@ ReMIXTURE <- R6::R6Class(
         stop( paste0("Argument to distance_matrix must be a square matrix") )
       }
 
+      #check if there is NAs or Inf on a diag. Convert to zeroes
+      if (all(is.na(diag(in_dm)))){
+        diag(in_dm) <- 0
+      } else if (all(is.infinite(diag(in_dm)))){
+        diag(in_dm) <- 0
+      }
       #check zeroes on diagonal
       if( !all(in_dm[diag(in_dm)]==0) ){
         stop("Self-distance (i.e. distance matrix diagonals) should always be zero")
