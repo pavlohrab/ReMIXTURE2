@@ -152,7 +152,6 @@ ReMIXTURE <- R6::R6Class(
       #check rows and columns are the same
       sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) })
 
-      #if matrix is triangular, fix it
       #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
       if (is.null(colnames(in_dm) | is.null(rownames(in_dm)))){
@@ -165,7 +164,7 @@ ReMIXTURE <- R6::R6Class(
       return(TRUE)
     },
     validate_it = function(in_it){
-      #check all columns "region", "lat" , "long" present and character/numeric/numeric
+      #check all columns "region", "x"(longitude) , "y"(latitude) present and character/numeric/numeric
       #if colour not present, auto-fill and
       if( is.null(info_table$col) ){ # No colours provided --- assign!
         warning("No colour column in info_table provided. Colour will be manually added.")
@@ -173,7 +172,8 @@ ReMIXTURE <- R6::R6Class(
       }
     },
     raw_out = data.table(), #raw output from sampling
-    counts = data.table() #(normalised, prefereably) count data from sampling
+    counts = data.table(), #(normalised, prefereably) count data from sampling
+    resample = data.table() #(normalised, prefereably) count data from sampling
   ),
 
 
