@@ -147,9 +147,9 @@ ReMIXTURE <- R6::R6Class(
 
 
       #call validators for dm and it if they exist
-      validate_dm(distance_matrix)
+      private$validate_dm(distance_matrix)
       if( !is.null(info_table) ){
-        validate_it(info_table)
+        private$validate_it(info_table)
       } else {
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
@@ -208,7 +208,7 @@ ReMIXTURE <- R6::R6Class(
       #if matrix is triangular, fix it
       #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
-      if (is.null(colnames(in_dm) | is.null(rownames(in_dm)))){
+      if (is.null(colnames(in_dm)) | is.null(rownames(in_dm))){
         stop( "Column and row names of input matrix must provide region information" )
       }
       if( !all(colnames(in_dm) == colnames(in_dm)) ) {
