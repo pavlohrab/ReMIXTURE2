@@ -159,9 +159,10 @@ ReMIXTURE <- R6::R6Class(
 
 
 
-    run = function(iterations=1000,resample=F){
+    run = function(iterations=1000, resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
+
     },
 
 
@@ -225,9 +226,9 @@ ReMIXTURE <- R6::R6Class(
     validate_it = function(in_it){
       #check all columns "region", "x"(longitude) , "y"(latitude) present and character/numeric/numeric
       #if colour not present, auto-fill and
-      if( is.null(info_table$col) ){ # No colours provided --- assign!
+      if( is.null(in_it$col) ){ # No colours provided --- assign!
         warning("No colour column in info_table provided. Colour will be manually added.")
-        info_table[ , col := replace_levels_with_colours(region) ]
+        in_it[ , col := replace_levels_with_colours(region) ]
       }
     },
     raw_out = data.table(), #raw output from sampling
