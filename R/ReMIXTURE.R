@@ -29,7 +29,6 @@
 #' test <- ReMIXTURE(distamce matrix, info_table)
 #' @export
 ReMIXTURE <- R6::R6Class(
-
   ################# Public ################
   public = list(
     initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
@@ -86,7 +85,6 @@ ReMIXTURE <- R6::R6Class(
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
 
-    },
 
       private$dm <- distance_matrix
 
