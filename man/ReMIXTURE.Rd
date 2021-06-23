@@ -4,22 +4,21 @@
 \alias{ReMIXTURE}
 \title{ReMIXTURE}
 \value{
-R6 class object
+A ReMIXTURE class object.
 }
 \description{
-The class, which makes provides an easy interface for ReMIXTURE methods, described here: (add reference)
+ReMIXTURE
+
+ReMIXTURE
 }
 \details{
-Methods for this class are $run, $plot_heatmap, $plot. They all are described in a separate sections
+Regionwise similarity analysis using a resampled nearest-neighbour method.
 }
 \section{Warning}{
 
-Does nothing interesting.
+Under development.
 }
 
-\examples{
-test <- ReMIXTURE(distamce matrix, info_table)
-}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
@@ -34,6 +33,7 @@ test <- ReMIXTURE(distamce matrix, info_table)
 \if{html}{\out{<a id="method-new"></a>}}
 \if{latex}{\out{\hypertarget{method-new}{}}}
 \subsection{Method \code{new()}}{
+Create a new ReMIXTURE object.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$new(distance_matrix, info_table = NULL)}\if{html}{\out{</div>}}
 }
@@ -41,39 +41,64 @@ test <- ReMIXTURE(distamce matrix, info_table)
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{distance_matrix}}{- A matrix of distances between samples.}
+\item{\code{distance_matrix}}{An all-vs-all, full numeric distance matrix, with rownames and
+colnames giving the region of origin of the corresponding individual.}
 
-\item{\code{info_table}}{- an object of class data.frame, which describes region coordinatess and color to use}
+\item{\code{info_table}}{A data.table rescribing the lat(y)/long(x)s of each region, with columns named "region", "x", "y", and optionally "col", to give a HEX colour to each region.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+a new `ReMIXTURE`` object.
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-run"></a>}}
 \if{latex}{\out{\hypertarget{method-run}{}}}
 \subsection{Method \code{run()}}{
+Run the ReMIXTURE analysis. Requires the information table to have been provided upon initialisation or later with $info_table().
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$run(iterations = 1000, resample = F)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{iterations}}{The number of samplings requested.}
+
+\item{\code{resample}}{If TRUE, will resample the iterations to establish variance in the results.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A sense of profound satisfaction.
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-plot_heatmap"></a>}}
 \if{latex}{\out{\hypertarget{method-plot_heatmap}{}}}
 \subsection{Method \code{plot_heatmap()}}{
+Plot the heatmap of RGOs. Requires that $run() has been called.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$plot_heatmap()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+A ggplot2 plot object.
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-plot_maps"></a>}}
 \if{latex}{\out{\hypertarget{method-plot_maps}{}}}
 \subsection{Method \code{plot_maps()}}{
+Plot all inter-region RGOs on a map. Requires that $run() has been called.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$plot_maps()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+A pheatmap::heatmap object
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-clone"></a>}}

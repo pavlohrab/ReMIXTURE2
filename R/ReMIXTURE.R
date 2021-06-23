@@ -1,55 +1,23 @@
-# Hello, world!
-#
-# This is an example function named 'hello'
-# which prints 'Hello, world!'.
-#
-# You can learn more about package authoring with RStudio at:
-#
-#   http://r-pkgs.had.co.nz/
-#
-# Some useful keyboard shortcuts for package authoring:
-#
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-
 #' ReMIXTURE
 #'
-#' The class, which makes provides an easy interface for ReMIXTURE methods, described here: (add reference)
-#'
-#' Methods for this class are $run, $plot_heatmap, $plot. They all are described in a separate sections
+#' Regionwise similarity analysis using a resampled nearest-neighbour method.
 #'
 #' @section Warning:
-#' Does nothing interesting.
+#' Under development.
 #'
-#' @param distance_matrix - A matrix of distances between samples.
-#' @param info_table - an object of class data.frame, which describes region coordinatess and color to use
-#' @return R6 class object
-#' @examples
-#' test <- ReMIXTURE(distamce matrix, info_table)
+#' @return A ReMIXTURE class object.
 #' @export
 ReMIXTURE <- R6::R6Class(
   ################# Public ################
   public = list(
+    #' @description
+    #' Create a new ReMIXTURE object.
+    #' @param distance_matrix An all-vs-all, full numeric distance matrix, with rownames and
+    #'      colnames giving the region of origin of the corresponding individual.
+    #' @param info_table A data.table rescribing the lat(y)/long(x)s of each region, with columns named "region", "x", "y", and optionally "col", to give a HEX colour to each region.
+    #' @return a new `ReMIXTURE`` object.
     initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
       #browser()
-
-      if( #lower triangular dm --- fill
-        all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
-      ){
-        warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
-        dm[lower.tri(dm)] <- dm[upper.tri(dm)]
-      }
-
-      if( #upper triangular dm --- fill
-        !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
-      ){
-        warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
-        dm[upper.tri(dm)] <- dm[lower.tri(dm)]
-      }
-
-
-
 
       #call validators for dm and it if they exist
       #browser()
@@ -92,7 +60,11 @@ ReMIXTURE <- R6::R6Class(
     },
 
 
-
+    #' @description
+    #' Run the ReMIXTURE analysis. Requires the information table to have been provided upon initialisation or later with $info_table().
+    #' @param iterations The number of samplings requested.
+    #' @param resample If TRUE, will resample the iterations to establish variance in the results.
+    #' @return A sense of profound satisfaction.
     run = function(iterations=1000, resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
@@ -137,7 +109,7 @@ ReMIXTURE <- R6::R6Class(
           insert <<- insert+1
         }) %>% invisible
 
-        ce("% complete: ",(insert/outsize)*100)
+        ce("% complete: ",round((insert/outsize)*100, 4))
       }
 
       #summarise the output
@@ -148,8 +120,7 @@ ReMIXTURE <- R6::R6Class(
 
 
       if (resample){
-        samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
-        samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
+        samplesize <- nu(private$raw_out$iteration)*0.9 #SET: How many items to sample each time
         nrowsit <- (nu(private$raw_out$p1)**2)
         nrowsout <- nrowsit*iterations
         #to store output
@@ -184,8 +155,9 @@ ReMIXTURE <- R6::R6Class(
     },
 
 
-
-
+    #' @description
+    #' Plot the heatmap of RGOs. Requires that $run() has been called.
+    #' @return A ggplot2 plot object.
     plot_heatmap = function(){
       #produce plots
       cnormed <- data.table::copy(private$counts)[,prop:=count/sum(count),by=.(p1)]
@@ -198,10 +170,37 @@ ReMIXTURE <- R6::R6Class(
 
 
 
-
+    #' @description
+    #' Plot all inter-region RGOs on a map. Requires that $run() has been called.
+    #' @return A pheatmap::heatmap object
     plot_maps = function(){
       #check
       #produce plots
+      cnormed <- data.table::copy(private$counts)[,prop:=count/sum(count),by=.(p1)]
+      cnormed<-cnormed[p1!=p2][order(prop)]
+
+      coords<-private$it
+      coords[,size:=private$counts[p1==region & p2==region]$count,by=region]
+      coords[,size:=size %>% scale_between(2,7)]
+      coords <- coords[!is.na(size)]
+
+      cnormed[,id:=1:.N]
+      cnormed <- coords[,.(p1=region,x1=x,y1=y)][cnormed,on="p1"]
+      cnormed <- coords[,.(p2=region,x2=x,y2=y)][cnormed,on="p2"]
+      # Plot the view of the globe.
+      world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+      p <- ggplot2::ggplot(data = world) +
+        ggplot2::geom_sf(lwd=0.05)
+
+      map<-  p+
+        ggplot2::geom_curve(data = cnormed, ggplot2::aes(x = x1, y = y1, xend = x2, yend = y2, size = prop),
+                   curvature = 0.5,
+                   alpha = 0.5,
+                   lineend = "round")+
+        ggplot2::geom_point(ggplot2::aes(x=x,y=y, size = size, colour = col),data= coords)+
+        ggplot2::scale_colour_manual(values = coords$col)+
+        ggplot2::theme(legend.position = "none")
+      return(map)
     }
   ),
 
@@ -233,8 +232,10 @@ ReMIXTURE <- R6::R6Class(
         stop("Self-distance (i.e. distance matrix diagonals) should always be zero")
       }
 
-      #check rows and columns are the same
-      sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) })
+      #check rows and columns are the same in_dm <- N
+      if ( !sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) }) %>% all ){
+        stop("Distance matrix is not diagonal")
+      }
 
       #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
@@ -245,14 +246,17 @@ ReMIXTURE <- R6::R6Class(
         stop( "Column and row names of input matrix must be the same" )
       }
 
-      return(TRUE)
     },
     validate_it = function(in_it){
       #check all columns "region", "x"(longitude) , "y"(latitude) present and character/numeric/numeric
-      #if colour not present, auto-fill and
-      if( is.null(in_it$col) ){ # No colours provided --- assign!
-        warning("No colour column in info_table provided. Colour will be manually added.")
-        in_it[ , col := replace_levels_with_colours(region) ]
+      if( !is.data.table(in_it) ){
+        stop("Info table must be a data.table")
+      }
+      if( any(!c("region","x","y") %in% colnames(in_it) ) ){
+        stop("Info table must have all( c(\"regions\",\"x\",\"y\") %in% colnames(.) )")
+      }
+      if( !all(unique(colnames(private$dm)) %in% in_it$region) ){
+        stop("All regions present in distance matrix must have entries in the info table.")
       }
     },
     raw_out = data.table(), #raw output from sampling
@@ -276,10 +280,14 @@ ReMIXTURE <- R6::R6Class(
     info_table = function(in_it){
       if(missing(in_it)){
         return(it)
-      } else { #validate and replace private$ct
-        if( validate_it(in_it) ) {
-          private$it <- in_it
+      } else { #validate and replace private$it
+        private$validate_it(in_it)
+        #if colour not present, auto-fill
+        if( is.null(in_it$col) ){ # No colours provided --- assign!
+          warning("No colour column in info_table provided. Colour will be manually added.")
+          in_it[ , col := replace_levels_with_colours(region) ]
         }
+        private$it <- in_it
       }
     }
   )
