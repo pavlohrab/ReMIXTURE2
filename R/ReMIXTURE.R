@@ -224,6 +224,7 @@ ReMIXTURE <- R6::R6Class(
                    alpha = 0.5,
                    lineend = "round")+
         ggplot2::geom_point(ggplot2::aes(x=x,y=y, size = size, colour = col),data= coords)+
+        ggplot2::scale_colour_manual(values = coords$col)+
         ggplot2::theme(legend.position = "none")
       return(map)
     }
