@@ -187,6 +187,7 @@ ReMIXTURE <- R6::R6Class(
     run = function(iterations=1000,resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
+      print("I am pretending to run")
     },
 
 
@@ -194,8 +195,9 @@ ReMIXTURE <- R6::R6Class(
 
     plot_heatmap = function(){
       #produce plots
+      print("Counts is this")
+      print(private$counts)
     },
-
 
 
 
@@ -291,10 +293,6 @@ ReMIXTURE <- R6::R6Class(
       }
     }
   )
-
-
-
-
 )
 
 ########### For development ###########
@@ -525,4 +523,67 @@ print(P)
 # pdf("ReMIXTURE_geospatial_jux.pdf",height=5,width=5,onefile = TRUE)
 # print(P)
 # dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+########### For development ###########
+M <- matrix(1:16,nrow=4)
+colnames(M) <- rownames(M) <- paste0("r",1:4)
+
+N <- M
+N[diag(N)] <- 0
+
+N <- fill_lower_from_upper(N)
+
+
+
+r <- ReMIXTURE$new(N)
+
+r$run()
+
+
+r$plot_heatmap()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
