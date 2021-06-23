@@ -29,11 +29,10 @@
 #' test <- ReMIXTURE(distamce matrix, info_table)
 #' @export
 ReMIXTURE <- R6::R6Class(
-
   ################# Public ################
   public = list(
     initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
-      browser()
+      #browser()
 
       if( #lower triangular dm --- fill
         all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
@@ -86,10 +85,9 @@ ReMIXTURE <- R6::R6Class(
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
 
-    },
 
       private$dm <- distance_matrix
-
+      private$dm <- fill_lower_from_upper(private$dm)
 
     },
 
@@ -98,10 +96,9 @@ ReMIXTURE <- R6::R6Class(
     run = function(iterations=1000, resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
-      private$dm <- fill_lower_from_upper(private$dm)
-
-      gpcol <- colnames(private$dm)
-      gplist <- data.table::data.table(region=colnames(private$dm))[,.N,by=.(region)]
+      dm <- private$dm
+      gpcol <- colnames(dm)
+      gplist <- data.table::data.table(region=colnames(dm))[,.N,by=.(region)]
 
       #index the positions of each region group
       gplist$offset <- c(0,rle(gpcol)$lengths) %>% `[`(-length(.)) %>% cumsum %>% `+`(1)
@@ -112,7 +109,7 @@ ReMIXTURE <- R6::R6Class(
       #set up some vectors to store info later
       outsize <- iterations * sampsize * nrow(gplist)
       select <- vector(mode="integer",length=sampsize*nrow(gplist)) #to store a list of the randomly selected samples each iteration
-      rawoutput <- data.table::data.table( #to store raw output each iteration
+      private$raw_out <- data.table::data.table( #to store raw output each iteration
         p1 = character(length=outsize),
         p2 = character(length=outsize),
         dist = numeric(length=outsize),
@@ -132,8 +129,8 @@ ReMIXTURE <- R6::R6Class(
         rnum <- 1
         #r = dm[select,select][1,]
         apply(dm[select,select],1,function(r){
-          private$raw_out$p1[insert] <<- colnames(private$dm)[select][rnum]
-          private$raw_out$p2[insert] <<- colnames(private$dm)[select][which(r==min(r))[1]]
+          private$raw_out$p1[insert] <<- colnames(dm)[select][rnum]
+          private$raw_out$p2[insert] <<- colnames(dm)[select][which(r==min(r))[1]]
           private$raw_out$dist[insert] <<- min(r)[1]
           private$raw_out$iteration[insert] <<- iteration
           rnum <<- rnum+1
@@ -169,8 +166,8 @@ ReMIXTURE <- R6::R6Class(
           ce("It: ",it)
           selectit <- sample(unique(private$raw_out$iteration),samplesize)
 
-          fill <- data.table::setDT(expand.grid(p1=unique(rawoutput$p1),p2=unique(rawoutput$p2)))
-          insert <- rawoutput[ iteration %in% selectit , .(count=.N,resamp=it) , by=.(p1,p2) ]
+          fill <- data.table::setDT(expand.grid(p1=unique(private$raw_out$p1),p2=unique(private$raw_out$p2)))
+          insert <- private$raw_out[ iteration %in% selectit , .(count=.N,resamp=it) , by=.(p1,p2) ]
           insert <- insert[fill,on=.(p1,p2)]
           insert[is.na(count),count:=0]
           insert[is.na(resamp),resamp:=it]
