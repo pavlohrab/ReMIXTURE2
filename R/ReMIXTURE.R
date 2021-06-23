@@ -53,12 +53,40 @@ ReMIXTURE <- R6::R6Class(
 
 
       #call validators for dm and it if they exist
+      #browser()
+
+      if( #lower triangular dm --- fill
+        all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
+      ){
+        warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
+        dm <- fill_lower_from_upper(dm)
+      }
+
+      if( #upper triangular dm --- fill
+        !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
+      ){
+        warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
+        dm <- fill_upper_from_lower(dm)
+      }
+
+
+
+
+      #call validators for dm and it if they exist
       private$validate_dm(distance_matrix)
       if( !is.null(info_table) ){
         private$validate_it(info_table)
+        private$it <- info_table
+        #if colour not present, auto-fill
+        if( is.null(info_table$col) ){ # No colours provided --- assign!
+          warning("No colour column in info_table provided. Colour will be manually added.")
+          info_table[ , col := replace_levels_with_colours(region) ]
+        }
       } else {
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
+
+    },
 
       private$dm <- distance_matrix
 
@@ -70,6 +98,8 @@ ReMIXTURE <- R6::R6Class(
     run = function(iterations=1000, resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
+      private$dm <- fill_lower_from_upper(private$dm)
+
       gpcol <- colnames(private$dm)
       gplist <- data.table::data.table(region=colnames(private$dm))[,.N,by=.(region)]
 
@@ -82,7 +112,7 @@ ReMIXTURE <- R6::R6Class(
       #set up some vectors to store info later
       outsize <- iterations * sampsize * nrow(gplist)
       select <- vector(mode="integer",length=sampsize*nrow(gplist)) #to store a list of the randomly selected samples each iteration
-      private$raw_out <- data.table::data.table( #to store raw output each iteration
+      rawoutput <- data.table::data.table( #to store raw output each iteration
         p1 = character(length=outsize),
         p2 = character(length=outsize),
         dist = numeric(length=outsize),
@@ -115,10 +145,13 @@ ReMIXTURE <- R6::R6Class(
 
       #summarise the output
       private$counts <- private$raw_out[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]
+
       data.table::setorder(private$raw_out,p1,p2,-dist)
       private$raw_out[,idx:=1:.N,by=.(p1)]
 
+
       if (resample){
+        samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
         samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
         nrowsit <- (nu(private$raw_out$p1)**2)
         nrowsout <- nrowsit*iterations
@@ -136,8 +169,8 @@ ReMIXTURE <- R6::R6Class(
           ce("It: ",it)
           selectit <- sample(unique(private$raw_out$iteration),samplesize)
 
-          fill <- data.table::setDT(expand.grid(p1=unique(private$raw_out$p1),p2=unique(private$raw_out$p2)))
-          insert <- private$raw_out[ iteration %in% selectit , .(count=.N,resamp=it) , by=.(p1,p2) ]
+          fill <- data.table::setDT(expand.grid(p1=unique(rawoutput$p1),p2=unique(rawoutput$p2)))
+          insert <- rawoutput[ iteration %in% selectit , .(count=.N,resamp=it) , by=.(p1,p2) ]
           insert <- insert[fill,on=.(p1,p2)]
           insert[is.na(count),count:=0]
           insert[is.na(resamp),resamp:=it]
@@ -258,5 +291,3 @@ ReMIXTURE <- R6::R6Class(
 
 
 )
-
-

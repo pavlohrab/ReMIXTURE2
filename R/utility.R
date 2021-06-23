@@ -3,8 +3,6 @@ NULL
 #' @importFrom magrittr `%>%`
 NULL
 
-
-# Helpers---------------------------------------------------------------------------------------------------------------
 ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
 nu <-function(x){
   unique(x) %>% length
@@ -13,6 +11,7 @@ scale_between <- function(x,lower,upper){
   if(all(x==mean(x,na.rm=T))) return(rep(mean(c(lower,upper),na.rm=T),length(x)))
   ( x - min(x,na.rm=T) ) / (max(x,na.rm=T)-min(x,na.rm=T)) * (upper-lower) + lower
 }
+
 replace_levels_with_colours <- function(x,palette="Berlin",alpha=1,fun="diverge_hcl",plot=FALSE,newplot=TRUE){
   #require(colorspace)
   n <- nu(x[!is.na(x)])
@@ -40,4 +39,22 @@ swap <- function(vec,matches,names,na.replacement=NA){
 }
 null_plot <- function(x,y,xlab=NA,ylab=NA,...){
   plot(NULL,xlim=range(x,na.rm=T),ylim=range(y,na.rm=T),xlab=xlab,ylab=ylab,...)
+}
+
+fill_upper_from_lower <- function(M){
+  plyr::l_ply(1:(nrow(M)-1),function(i){
+    plyr::l_ply((i+1):ncol(M),function(j){
+      M[i,j] <<- M[j,i]
+    })
+  })
+  M
+}
+
+fill_lower_from_upper <- function(M){
+  plyr::l_ply(1:(nrow(M)-1),function(i){
+    plyr::l_ply((i+1):ncol(M),function(j){
+      M[j,i] <<- M[i,j]
+    })
+  })
+  M
 }
