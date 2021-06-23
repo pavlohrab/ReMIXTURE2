@@ -34,23 +34,6 @@ ReMIXTURE <- R6::R6Class(
     initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
       #browser()
 
-      if( #lower triangular dm --- fill
-        all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
-      ){
-        warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
-        dm[lower.tri(dm)] <- dm[upper.tri(dm)]
-      }
-
-      if( #upper triangular dm --- fill
-        !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
-      ){
-        warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
-        dm[upper.tri(dm)] <- dm[lower.tri(dm)]
-      }
-
-
-
-
       #call validators for dm and it if they exist
       #browser()
 
@@ -258,8 +241,10 @@ ReMIXTURE <- R6::R6Class(
         stop("Self-distance (i.e. distance matrix diagonals) should always be zero")
       }
 
-      #check rows and columns are the same
-      sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) })
+      #check rows and columns are the same in_dm <- N
+      if ( !sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) }) %>% all ){
+        stop("Distance matrix is not diagonal")
+      }
 
       #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
@@ -270,15 +255,17 @@ ReMIXTURE <- R6::R6Class(
         stop( "Column and row names of input matrix must be the same" )
       }
 
-      return(TRUE)
     },
     validate_it = function(in_it){
       #check all columns "region", "x"(longitude) , "y"(latitude) present and character/numeric/numeric
-      #if colour not present, auto-fill and
-      if( is.null(in_it$col) ){ # No colours provided --- assign!
-        warning("No colour column in info_table provided. Colour will be manually added.")
-        in_it[ , col := replace_levels_with_colours(region) ]
+      if( !is.data.table(in_it) ){
+        stop("Info table must be a data.table")
       }
+      if( any(!c("region","x","y") %in% colnames(in_it) ) ){
+        stop("Info table must have all( c(\"regions\",\"x\",\"y\") %in% colnames(.) )")
+      }
+      if( !all(unique(colnames(private$dm)) %in% in_it$region) ){
+        stop("All regions present in distance matrix must have entries in the info table.")
     },
     raw_out = data.table(), #raw output from sampling
     counts = data.table(), #(normalised, prefereably) count data from sampling
