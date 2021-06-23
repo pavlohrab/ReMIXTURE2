@@ -137,7 +137,7 @@ ReMIXTURE <- R6::R6Class(
           insert <<- insert+1
         }) %>% invisible
 
-        ce("% complete: ",(insert/outsize)*100)
+        ce("% complete: ",round((insert/outsize)*100, 4))
       }
 
       #summarise the output
@@ -202,6 +202,30 @@ ReMIXTURE <- R6::R6Class(
     plot_maps = function(){
       #check
       #produce plots
+      cnormed <- data.table::copy(private$counts)[,prop:=count/sum(count),by=.(p1)]
+      cnormed<-cnormed[p1!=p2][order(prop)]
+
+      coords<-private$it
+      coords[,size:=private$counts[p1==region & p2==region]$count,by=region]
+      coords[,size:=size %>% scale_between(2,7)]
+      coords <- coords[!is.na(size)]
+
+      cnormed[,id:=1:.N]
+      cnormed <- coords[,.(p1=region,x1=x,y1=y)][cnormed,on="p1"]
+      cnormed <- coords[,.(p2=region,x2=x,y2=y)][cnormed,on="p2"]
+      # Plot the view of the globe.
+      world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+      p <- ggplot2::ggplot(data = world) +
+        ggplot2::geom_sf(lwd=0.05)
+
+      map<-  p+
+        ggplot2::geom_curve(data = cnormed, ggplot2::aes(x = x1, y = y1, xend = x2, yend = y2, size = prop),
+                   curvature = 0.5,
+                   alpha = 0.5,
+                   lineend = "round")+
+        ggplot2::geom_point(ggplot2::aes(x=x,y=y, size = size, colour = col),data= coords)+
+        ggplot2::theme(legend.position = "none")
+      return(map)
     }
   ),
 
