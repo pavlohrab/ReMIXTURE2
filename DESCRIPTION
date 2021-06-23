@@ -1,10 +1,10 @@
 Package: ReMIXTURE
 Type: Package
-Title: Currently very little.
+Title: Package for 
 Version: 0.0.9000
-Author: Me
-Maintainer: Absent <doesntexist@nowhere.com.au>
-License: CC0
+Author: Tim Rabanus-Wallace
+Maintainer: Tim Rabanus-Wallace <doesntexist@nowhere.com.au>
+License: MIT
 Description: Not even worth mentioning
     ... really it's not
 Encoding: UTF-8
@@ -17,7 +17,16 @@ Suggests:
     knitr
 VignetteBuilder: knitr
 Imports:
-    Rcpp,
-    reshape2
-LinkingTo: 
-    Rcpp
+    data.table,
+    magrittr,
+    plyr,
+    R6,
+    ggplot2,
+    sp,
+    rgdal,
+    ggspatial,
+    rnaturalearth,
+    rnaturalearthdata,
+    pheatmap,
+    colorspace
+    
