@@ -1,12 +1,13 @@
 Package: ReMIXTURE
 Type: Package
-Title: Package for 
+Title: ReMIXTURE: Regionwise similarity analysis using a resampled nearest-neighbour method.
 Version: 0.0.9000
-Author: Tim Rabanus-Wallace
-Maintainer: Tim Rabanus-Wallace <doesntexist@nowhere.com.au>
-License: MIT
-Description: Not even worth mentioning
-    ... really it's not
+Author: Bak, F., Hrab, P., Rabanus-Wallace, M.T.
+Maintainer: M <doesntexist@nowhere.com.au>
+License: CC0
+Description: Regionwise similarity analysis for collections of objects with known 
+    inter-object distances and some 'region' property, using a resampled nearest-neighbour 
+    method. As described in Rabanus-Wallace & Tripodi et al. (2021)
 Encoding: UTF-8
 LazyData: true
 Depends: 
