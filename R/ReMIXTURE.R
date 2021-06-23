@@ -120,8 +120,7 @@ ReMIXTURE <- R6::R6Class(
 
 
       if (resample){
-        samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
-        samplesize <- nu(private$raw_out$iteration)*0.1 #SET: How many items to sample each time
+        samplesize <- nu(private$raw_out$iteration)*0.9 #SET: How many items to sample each time
         nrowsit <- (nu(private$raw_out$p1)**2)
         nrowsout <- nrowsit*iterations
         #to store output
