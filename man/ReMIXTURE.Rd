@@ -24,6 +24,7 @@ Under development.
 \itemize{
 \item \href{#method-new}{\code{ReMIXTURE$new()}}
 \item \href{#method-run}{\code{ReMIXTURE$run()}}
+\item \href{#method-run_resampling}{\code{ReMIXTURE$run_resampling()}}
 \item \href{#method-plot_heatmap}{\code{ReMIXTURE$plot_heatmap()}}
 \item \href{#method-plot_maps}{\code{ReMIXTURE$plot_maps()}}
 \item \href{#method-clone}{\code{ReMIXTURE$clone()}}
@@ -67,6 +68,28 @@ Run the ReMIXTURE analysis. Requires the information table to have been provided
 \item{\code{iterations}}{The number of samplings requested.}
 
 \item{\code{resample}}{If TRUE, will resample the iterations to establish variance in the results.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A sense of profound satisfaction.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-run_resampling"></a>}}
+\if{latex}{\out{\hypertarget{method-run_resampling}{}}}
+\subsection{Method \code{run_resampling()}}{
+Run the resampling of ReMIXTURE analysis results. Requires the information table to have been provided upon initialisation or later with $info_table().
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$run_resampling(iterations = 1000, qualifier = 0.9)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{iterations}}{The number of samplings requested.}
+
+\item{\code{qualifier}}{Float number between 0 and 1, which states how many samples to retrieve from every iteration.}
 }
 \if{html}{\out{</div>}}
 }

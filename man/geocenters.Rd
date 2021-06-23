@@ -14,7 +14,7 @@ A data table object with 11 rows and 4 variables:
 }
 }
 \source{
-\url{http://www.diamondse.info/}
+{Rabanus-Wallace & Tripodi et al. (2021) }
 }
 \usage{
 geocenters
