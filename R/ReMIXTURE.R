@@ -257,6 +257,7 @@ ReMIXTURE <- R6::R6Class(
       }
       if( !all(unique(colnames(private$dm)) %in% in_it$region) ){
         stop("All regions present in distance matrix must have entries in the info table.")
+      }
     },
     raw_out = data.table(), #raw output from sampling
     counts = data.table(), #(normalised, prefereably) count data from sampling
