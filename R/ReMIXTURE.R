@@ -26,14 +26,14 @@ ReMIXTURE <- R6::R6Class(
         all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
-        dm <- fill_lower_from_upper(dm)
+        dm <- fill_lower_from_upper(distance_matrix)
       }
 
       if( #upper triangular dm --- fill
         !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
-        dm <- fill_upper_from_lower(dm)
+        distance_matrix <- fill_upper_from_lower(distance_matrix)
       }
 
 
@@ -55,7 +55,6 @@ ReMIXTURE <- R6::R6Class(
 
 
       private$dm <- distance_matrix
-      private$dm <- fill_lower_from_upper(private$dm)
 
     },
 
@@ -249,7 +248,7 @@ ReMIXTURE <- R6::R6Class(
     },
     validate_it = function(in_it){
       #check all columns "region", "x"(longitude) , "y"(latitude) present and character/numeric/numeric
-      if( !is.data.table(in_it) ){
+      if( !data.table::is.data.table(in_it) ){
         stop("Info table must be a data.table")
       }
       if( any(!c("region","x","y") %in% colnames(in_it) ) ){
