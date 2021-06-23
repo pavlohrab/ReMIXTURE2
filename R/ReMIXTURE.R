@@ -116,6 +116,26 @@ swap <- function(vec,matches,names,na.replacement=NA){
 null_plot <- function(x,y,xlab=NA,ylab=NA,...){
   plot(NULL,xlim=range(x,na.rm=T),ylim=range(y,na.rm=T),xlab=xlab,ylab=ylab,...)
 }
+
+fill_upper_from_lower <- function(M){
+  plyr::l_ply(1:(nrow(M)-1),function(i){
+    plyr::l_ply((i+1):ncol(M),function(j){
+      M[i,j] <<- M[j,i]
+    })
+  })
+  M
+}
+
+fill_lower_from_upper <- function(M){
+  plyr::l_ply(1:(nrow(M)-1),function(i){
+    plyr::l_ply((i+1):ncol(M),function(j){
+      M[j,i] <<- M[i,j]
+    })
+  })
+  M
+}
+
+
 ############################################################################
 
 ###################################################################################################################################
@@ -127,20 +147,20 @@ ReMIXTURE <- R6::R6Class(
   ################# Public ################
   public = list(
     initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
-      browser()
+      #browser()
 
       if( #lower triangular dm --- fill
         all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
-        dm[lower.tri(dm)] <- dm[upper.tri(dm)]
+        dm <- fill_lower_from_upper(dm)
       }
 
       if( #upper triangular dm --- fill
         !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
-        dm[upper.tri(dm)] <- dm[lower.tri(dm)]
+        dm <- fill_upper_from_lower(dm)
       }
 
 
@@ -150,10 +170,15 @@ ReMIXTURE <- R6::R6Class(
       private$validate_dm(distance_matrix)
       if( !is.null(info_table) ){
         private$validate_it(info_table)
+        private$it <- info_table
+        #if colour not present, auto-fill
+        if( is.null(info_table$col) ){ # No colours provided --- assign!
+          warning("No colour column in info_table provided. Colour will be manually added.")
+          info_table[ , col := replace_levels_with_colours(region) ]
+        }
       } else {
         warning("No info table provided. Must be inputted manually with $info_table() before $run() can be called.")
       }
-
 
     },
 
@@ -208,8 +233,10 @@ ReMIXTURE <- R6::R6Class(
         stop("Self-distance (i.e. distance matrix diagonals) should always be zero")
       }
 
-      #check rows and columns are the same
-      sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) })
+      #check rows and columns are the same in_dm <- N
+      if ( !sapply(1:nrow(in_dm),function(r) { all(in_dm[r,]==in_dm[,r]) }) %>% all ){
+        stop("Distance matrix is not diagonal")
+      }
 
       #check groups have decent numbers
       #check rowsnames/colnames exist and rownames==colnames
@@ -219,15 +246,17 @@ ReMIXTURE <- R6::R6Class(
       if( !all(colnames(in_dm) == colnames(in_dm)) ) {
         stop( "Column and row names of input matrix must be the same" )
       }
-
-      return(TRUE)
     },
     validate_it = function(in_it){
       #check all columns "region", "x"(longitude) , "y"(latitude) present and character/numeric/numeric
-      #if colour not present, auto-fill and
-      if( is.null(info_table$col) ){ # No colours provided --- assign!
-        warning("No colour column in info_table provided. Colour will be manually added.")
-        info_table[ , col := replace_levels_with_colours(region) ]
+      if( !is.data.table(in_it) ){
+        stop("Info table must be a data.table")
+      }
+      if( any(!c("region","x","y") %in% colnames(in_it) ) ){
+        stop("Info table must have all( c(\"regions\",\"x\",\"y\") %in% colnames(.) )")
+      }
+      if( !all(unique(colnames(private$dm)) %in% in_it$region) ){
+        stop("All regions present in distance matrix must have entries in the info table.")
       }
     },
     raw_out = data.table(), #raw output from sampling
@@ -251,10 +280,14 @@ ReMIXTURE <- R6::R6Class(
     info_table = function(in_it){
       if(missing(in_it)){
         return(it)
-      } else { #validate and replace private$ct
-        if( validate_it(in_it) ) {
-          private$it <- in_it
+      } else { #validate and replace private$it
+        private$validate_it(in_it)
+        #if colour not present, auto-fill
+        if( is.null(in_it$col) ){ # No colours provided --- assign!
+          warning("No colour column in info_table provided. Colour will be manually added.")
+          in_it[ , col := replace_levels_with_colours(region) ]
         }
+        private$it <- in_it
       }
     }
   )
@@ -264,13 +297,25 @@ ReMIXTURE <- R6::R6Class(
 
 )
 
+########### For development ###########
+M <- matrix(1:16,nrow=4)
+colnames(M) <- rownames(M) <- paste0("r",1:4)
+
+N <- M
+N[diag(N)] <- 0
+
+
+R <- ReMIXTURE$new(M)
+R <- ReMIXTURE$new(N)
+
 
 
 #################### WORKSPACE ########################
 
 
-dm <- readRDS("../../dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
-dm[lower.tri(dm)] <- dm[upper.tri(dm)] #assure it's symmetrical
+dm <- readRDS("C://Users/Tim/Dropbox/remixture_data/dmfiltered.Rds") #a matrix of similarities (e.g., IBS scores, where higher=more similar) between individuals, where the row and column names give the regions from which the sample comes. Naturally, the individuals should be in the same order along rows and columns. Also, importantly, the regions MUST be grouped together, e.g. Regions(rows) = A,A,A,C,C,D,D,D,D,D,B,B and NOT A,B,D,A,C,C,A, ...
+dm <- fill_lower_from_upper(dm)
+view_matrix(dm)
 
 
 all(colnames(dm)==rownames(dm)) #should be true
@@ -281,7 +326,7 @@ gplist <- data.table::data.table(region=colnames(dm))[,.N,by=.(region)]
 gplist$offset <- c(0,rle(gpcol)$lengths) %>% `[`(-length(.)) %>% cumsum %>% `+`(1)
 gplist[,idx:=1:.N]
 
-nits <- 10 #SET: how many iterations?
+nits <- 2000 #SET: how many iterations?
 sampsize <- (min(table(gpcol)) * (2/3)) %>% round #SET: how many samples per iteration (from each region)
 
 #set up some vectors to store info later
@@ -389,7 +434,7 @@ itcount
 
 #Table of lat("y")/long("x") positions for each region, and their chosen colour for the plot (recommend hex format [https://www.google.com/search?q=color+picker]). Format (example):
 
-centres <- data.table::fread("../../geo_centres.csv",col.names=c("region","x","y","col"))
+centres <- data.table::fread("C://Users/Tim/Dropbox/remixture_data/geo_centres.csv",col.names=c("region","x","y","col"))
 world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
 circle <- function(x=0,y=0,rad=1,n_pts=200){
   theta <- seq(from=0,to=((2*pi)-(2*pi)/n_pts),length.out=n_pts)
@@ -447,6 +492,8 @@ for(i in unique(ldat$region)){
     ggplot2::theme(legend.position = "none")
   print(P)
 }
+
+i <- "Africa"
 
 #... or in case you'd like to save them
 # dev.off()
