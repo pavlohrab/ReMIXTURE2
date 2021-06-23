@@ -1,36 +1,21 @@
-# Hello, world!
-#
-# This is an example function named 'hello'
-# which prints 'Hello, world!'.
-#
-# You can learn more about package authoring with RStudio at:
-#
-#   http://r-pkgs.had.co.nz/
-#
-# Some useful keyboard shortcuts for package authoring:
-#
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-
 #' ReMIXTURE
 #'
-#' The class, which makes provides an easy interface for ReMIXTURE methods, described here: (add reference)
-#'
-#' Methods for this class are $run, $plot_heatmap, $plot. They all are described in a separate sections
+#' Regionwise similarity analysis using a resampled nearest-neighbour method.
 #'
 #' @section Warning:
-#' Does nothing interesting.
+#' Under development.
 #'
-#' @param distance_matrix - A matrix of distances between samples.
-#' @param info_table - an object of class data.frame, which describes region coordinatess and color to use
-#' @return R6 class object
-#' @examples
-#' test <- ReMIXTURE(distamce matrix, info_table)
+#' @return A ReMIXTURE class object.
 #' @export
 ReMIXTURE <- R6::R6Class(
   ################# Public ################
   public = list(
+    #' @description
+    #' Create a new ReMIXTURE object.
+    #' @param distance_matrix An all-vs-all, full numeric distance matrix, with rownames and
+    #'      colnames giving the region of origin of the corresponding individual.
+    #' @param info_table A data.table rescribing the lat(y)/long(x)s of each region, with columns named "region", "x", "y", and optionally "col", to give a HEX colour to each region.
+    #' @return a new `ReMIXTURE`` object.
     initialize = function(distance_matrix,info_table=NULL){ #constructor, overrides self$new
       #browser()
 
@@ -75,7 +60,11 @@ ReMIXTURE <- R6::R6Class(
     },
 
 
-
+    #' @description
+    #' Run the ReMIXTURE analysis. Requires the information table to have been provided upon initialisation or later with $info_table().
+    #' @param iterations The number of samplings requested.
+    #' @param resample If TRUE, will resample the iterations to establish variance in the results.
+    #' @return A sense of profound satisfaction.
     run = function(iterations=1000, resample=F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
@@ -167,8 +156,9 @@ ReMIXTURE <- R6::R6Class(
     },
 
 
-
-
+    #' @description
+    #' Plot the heatmap of RGOs. Requires that $run() has been called.
+    #' @return A ggplot2 plot object.
     plot_heatmap = function(){
       #produce plots
       cnormed <- data.table::copy(private$counts)[,prop:=count/sum(count),by=.(p1)]
@@ -181,7 +171,9 @@ ReMIXTURE <- R6::R6Class(
 
 
 
-
+    #' @description
+    #' Plot all inter-region RGOs on a map. Requires that $run() has been called.
+    #' @return A pheatmap::heatmap object
     plot_maps = function(){
       #check
       #produce plots
@@ -288,10 +280,14 @@ ReMIXTURE <- R6::R6Class(
     info_table = function(in_it){
       if(missing(in_it)){
         return(it)
-      } else { #validate and replace private$ct
-        if( validate_it(in_it) ) {
-          private$it <- in_it
+      } else { #validate and replace private$it
+        private$validate_it(in_it)
+        #if colour not present, auto-fill
+        if( is.null(in_it$col) ){ # No colours provided --- assign!
+          warning("No colour column in info_table provided. Colour will be manually added.")
+          in_it[ , col := replace_levels_with_colours(region) ]
         }
+        private$it <- in_it
       }
     }
   )
