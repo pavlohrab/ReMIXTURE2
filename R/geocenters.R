@@ -9,5 +9,5 @@
 #'   \item{x}{x coordinates for a region center}
 #'   \item{col}{Color to use in hexadecimal format}
 #' }
-#' @source \url{http://www.diamondse.info/}
+#' @source {Rabanus-Wallace & Tripodi et al. (2021) }
 "geocenters"

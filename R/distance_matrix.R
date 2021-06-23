@@ -8,5 +8,5 @@
 #' Upper triangle and lower triangle are identical. 
 #' It is possible to populate one of the triangles with zeroes
 #' 
-#' @source {Rabanus-Wallace & Tripodi et al. (2021) /}
+#' @source {Rabanus-Wallace & Tripodi et al. (2021) }
 "distance_matrix"
