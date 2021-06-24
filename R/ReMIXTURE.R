@@ -81,7 +81,7 @@ ReMIXTURE <- R6::R6Class(
       #set up some vectors to store info later
       outsize <- iterations * sampsize * nrow(gplist)
       select <- vector(mode="integer",length=sampsize*nrow(gplist)) #to store a list of the randomly selected samples each iteration
-      private$raw_out <- data.table::data.table( #to store raw output each iteration
+      raw_out <- data.table::data.table( #to store raw output each iteration
         p1 = character(length=outsize),
         p2 = character(length=outsize),
         dist = numeric(length=outsize),
@@ -93,7 +93,7 @@ ReMIXTURE <- R6::R6Class(
       if (parallelize){
         options(parallelly.makeNodePSOCK.setup_strategy = "sequential")
         cat("Setting up parallel architecture \n")
-        future::plan(future::multisession(workers = 4))
+        future::plan(future::multisession)
       } else {
         future::plan(future::sequential)
       }
@@ -108,17 +108,17 @@ ReMIXTURE <- R6::R6Class(
           rnum <- 1
           #r = dm[select,select][1,]
           future.apply::future_apply(dm[select,select],1,function(r){
-            private$raw_out$p1[insert] <<- colnames(dm)[select][rnum]
-            private$raw_out$p2[insert] <<- colnames(dm)[select][which(r==min(r))[1]]
-            private$raw_out$dist[insert] <<- min(r)[1]
-            private$raw_out$iteration[insert] <<- iteration
+            raw_out$p1[insert] <<- colnames(dm)[select][rnum]
+            raw_out$p2[insert] <<- colnames(dm)[select][which(r==min(r))[1]]
+            raw_out$dist[insert] <<- min(r)[1]
+            raw_out$iteration[insert] <<- iteration
             rnum <<- rnum+1
             insert <<- insert+1
           }) %>% invisible
 
           ce("% complete: ",round((iteration/iterations)*100, 4))
         }
-
+      private$raw_out <- raw_out
       #summarise the output
       private$counts <- private$raw_out[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]
 
