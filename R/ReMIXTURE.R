@@ -21,12 +21,14 @@ ReMIXTURE <- R6::R6Class(
 
       #call validators for dm and it if they exist
       #browser()
-
+      if( ncol(distance_matrix) != nrow(distance_matrix)){
+        stop("Distance matrix must be square")
+      }
       if( #lower triangular dm --- fill
         all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
-        dm <- fill_lower_from_upper(distance_matrix)
+        distance_matrix <- fill_lower_from_upper(distance_matrix)
       }
 
       if( #upper triangular dm --- fill
@@ -293,7 +295,7 @@ ReMIXTURE <- R6::R6Class(
     },
     info_table = function(in_it){
       if(missing(in_it)){
-        private$it
+        return(private$it)
       } else { #validate and replace private$it
         private$validate_it(in_it)
         #if colour not present, auto-fill
@@ -306,9 +308,5 @@ ReMIXTURE <- R6::R6Class(
     }
 
   )
-
-
-
-
 )
 
