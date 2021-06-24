@@ -63,8 +63,9 @@ ReMIXTURE <- R6::R6Class(
     #' Run the ReMIXTURE analysis. Requires the information table to have been provided upon initialisation or later with $info_table().
     #' @param iterations The number of samplings requested.
     #' @param resample If TRUE, will resample the iterations to establish variance in the results.
+    #' @param parallelize If True, then all available cores will be used for an analysis
     #' @return A sense of profound satisfaction.
-    run = function(iterations=1000, resample=F){
+    run = function(iterations=1000, resample=F, parallelize = F){
       #run the method to fill private$counts (define this somewhere else for clarity and call it here)
       # if resample==T, then run the resampling stuff too
       dm <- private$dm
@@ -89,27 +90,34 @@ ReMIXTURE <- R6::R6Class(
       insert <- 1 #a flag
 
       #run the iterations
-      for(iteration in 1:iterations){
-        #fill the `select` vector
-        #dev iteration = 1
-        gplist[,{
-          select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
-        },by="idx"] %>% invisible
-
-        #Find closest neighbours for the selected sample, store results in output table
-        rnum <- 1
-        #r = dm[select,select][1,]
-        apply(dm[select,select],1,function(r){
-          private$raw_out$p1[insert] <<- colnames(dm)[select][rnum]
-          private$raw_out$p2[insert] <<- colnames(dm)[select][which(r==min(r))[1]]
-          private$raw_out$dist[insert] <<- min(r)[1]
-          private$raw_out$iteration[insert] <<- iteration
-          rnum <<- rnum+1
-          insert <<- insert+1
-        }) %>% invisible
-
-        ce("% complete: ",round((insert/outsize)*100, 4))
+      if (parallelize){
+        options(parallelly.makeNodePSOCK.setup_strategy = "sequential")
+        cat("Setting up parallel architecture \n")
+        future::plan(future::multisession(workers = 4))
+      } else {
+        future::plan(future::sequential)
       }
+        for(iteration in 1:iterations){
+          #fill the `select` vector
+          #dev iteration = 1
+          gplist[,{
+            select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
+          },by="idx"] %>% invisible
+
+          #Find closest neighbours for the selected sample, store results in output table
+          rnum <- 1
+          #r = dm[select,select][1,]
+          future.apply::future_apply(dm[select,select],1,function(r){
+            private$raw_out$p1[insert] <<- colnames(dm)[select][rnum]
+            private$raw_out$p2[insert] <<- colnames(dm)[select][which(r==min(r))[1]]
+            private$raw_out$dist[insert] <<- min(r)[1]
+            private$raw_out$iteration[insert] <<- iteration
+            rnum <<- rnum+1
+            insert <<- insert+1
+          }) %>% invisible
+
+          ce("% complete: ",round((iteration/iterations)*100, 4))
+        }
 
       #summarise the output
       private$counts <- private$raw_out[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]

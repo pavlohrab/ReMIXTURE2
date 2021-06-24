@@ -29,5 +29,7 @@ Imports:
     rnaturalearth,
     rnaturalearthdata,
     pheatmap,
-    colorspace
+    colorspace,
+    future,
+    future.apply
     

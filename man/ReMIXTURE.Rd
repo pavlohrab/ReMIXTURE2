@@ -59,7 +59,7 @@ a new `ReMIXTURE`` object.
 \subsection{Method \code{run()}}{
 Run the ReMIXTURE analysis. Requires the information table to have been provided upon initialisation or later with $info_table().
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$run(iterations = 1000, resample = F)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ReMIXTURE$run(iterations = 1000, resample = F, parallelize = F)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -68,6 +68,8 @@ Run the ReMIXTURE analysis. Requires the information table to have been provided
 \item{\code{iterations}}{The number of samplings requested.}
 
 \item{\code{resample}}{If TRUE, will resample the iterations to establish variance in the results.}
+
+\item{\code{parallelize}}{If True, then all available cores will be used for an analysis}
 }
 \if{html}{\out{</div>}}
 }
