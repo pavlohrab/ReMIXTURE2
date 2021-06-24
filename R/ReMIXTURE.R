@@ -81,24 +81,17 @@ ReMIXTURE <- R6::R6Class(
       sampsize <- (min(table(gpcol)) * (2/3)) %>% round #SET: how many samples per iteration (from each region)
 
       #set up some vectors to store info later
-      outsize <- iterations * sampsize * nrow(gplist)
       select <- vector(mode="integer",length=sampsize*nrow(gplist)) #to store a list of the randomly selected samples each iteration
-      raw_out <- data.table::data.table( #to store raw output each iteration
-        p1 = character(length=outsize),
-        p2 = character(length=outsize),
-        dist = numeric(length=outsize),
-        iteration = integer(length=outsize)
-      )
-      insert <- 1 #a flag
 
       #run the iterations
       if (parallelize){
         options(parallelly.makeNodePSOCK.setup_strategy = "sequential")
         cat("Setting up parallel architecture \n")
-        future::plan(future::multisession)
+        future::plan(future::multisession(workers = 2))
       } else {
         future::plan(future::sequential)
       }
+      res <- list()
         for(iteration in 1:iterations){
           #fill the `select` vector
           #dev iteration = 1
@@ -106,21 +99,25 @@ ReMIXTURE <- R6::R6Class(
             select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
           },by="idx"] %>% invisible
 
-          #Find closest neighbours for the selected sample, store results in output table
-          rnum <- 1
+          #Find closest neighboursrnum <- 1
           #r = dm[select,select][1,]
-          future.apply::future_apply(dm[select,select],1,function(r){
-            raw_out$p1[insert] <<- colnames(dm)[select][rnum]
-            raw_out$p2[insert] <<- colnames(dm)[select][which(r==min(r))[1]]
-            raw_out$dist[insert] <<- min(r)[1]
-            raw_out$iteration[insert] <<- iteration
-            rnum <<- rnum+1
-            insert <<- insert+1
-          }) %>% invisible
+          num_row <- nrow(dm[select,select])
+          selection <- dm[select,select]
+          out1 <- future.apply::future_lapply(1:num_row,function(r){
+            return(data.table(colnames(dm)[select][[r]],
+                              colnames(dm)[select][which(selection[r,]==min(selection[r,]))[1]],
+                              min(selection[[r]])[1],
+                              iteration))
+          })
+          res <- c(res, out1)
 
           ce("% complete: ",round((iteration/iterations)*100, 4))
         }
-      private$raw_out <- raw_out
+      raw_out <- plyr::ldply(res, data.table)
+      remove(res)
+      colnames(raw_out) <- c("p1", "p2", "dist", "iteration")
+      private$raw_out <- data.table(raw_out)
+      remove(raw_out)
       #summarise the output
       private$counts <- private$raw_out[ , .(count=.N) , by=.(p1,p2) ][ is.na(count) , count:=0 ]
 
@@ -299,6 +296,13 @@ ReMIXTURE <- R6::R6Class(
         private$resample
       } else {
         warning("Resample matrix cannot be modified manually")
+      }
+    },
+    raw_out_matrix = function(raw){
+      if (missing(raw)){
+        private$raw_out
+      } else {
+        warning("Raw output matrix cannot be modified manually")
       }
     },
     info_table = function(in_it){
