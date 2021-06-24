@@ -87,33 +87,31 @@ ReMIXTURE <- R6::R6Class(
       if (parallelize){
         options(parallelly.makeNodePSOCK.setup_strategy = "sequential")
         cat("Setting up parallel architecture \n")
-        future::plan(future::multisession(workers = 2))
+        future::plan(future::multisession(workers = 4))
       } else {
         future::plan(future::sequential)
       }
-      res <- list()
-        for(iteration in 1:iterations){
-          #fill the `select` vector
-          #dev iteration = 1
-          gplist[,{
-            select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
-          },by="idx"] %>% invisible
+      res <- future.apply::future_lapply(1:iterations, function(iteration){
+        #fill the `select` vector
+        #dev iteration = 1
+        gplist[,{
+          select[(sampsize*(idx-1)+1):((sampsize*(idx-1))+sampsize)] <<- sample(N,sampsize)-1+offset
+        },by="idx"] %>% invisible
 
-          #Find closest neighboursrnum <- 1
-          #r = dm[select,select][1,]
-          num_row <- nrow(dm[select,select])
-          selection <- dm[select,select]
-          out1 <- future.apply::future_lapply(1:num_row,function(r){
-            return(data.table(colnames(dm)[select][[r]],
-                              colnames(dm)[select][which(selection[r,]==min(selection[r,]))[1]],
-                              min(selection[[r]])[1],
-                              iteration))
-          })
-          res <- c(res, out1)
-
-          ce("% complete: ",round((iteration/iterations)*100, 4))
-        }
-      raw_out <- plyr::ldply(res, data.table)
+        #Find closest neighboursrnum <- 1
+        #r = dm[select,select][1,]
+        num_row <- nrow(dm[select,select])
+        selection <- dm[select,select]
+        out1 <- lapply(1:num_row,function(r){
+          return(data.table(colnames(dm)[select][[r]],
+                            colnames(dm)[select][which(selection[r,]==min(selection[r,]))[1]],
+                            min(selection[[r]])[1],
+                            iteration))
+        })
+        ce("% complete: ",round((iteration/iterations)*100, 4))
+        return(out1)
+      }, future.seed = T)
+      raw_out <- plyr::ldply(unlist(res, recursive = F), data.table)
       remove(res)
       colnames(raw_out) <- c("p1", "p2", "dist", "iteration")
       private$raw_out <- data.table(raw_out)
