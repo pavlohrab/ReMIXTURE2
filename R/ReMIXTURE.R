@@ -21,19 +21,21 @@ ReMIXTURE <- R6::R6Class(
 
       #call validators for dm and it if they exist
       #browser()
-
+      if( ncol(distance_matrix) != nrow(distance_matrix)){
+        stop("Distance matrix must be square")
+      }
       if( #lower triangular dm --- fill
         all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & !all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in lower triangle will be filled based on the upper triangle")
-        dm <- fill_lower_from_upper(dm)
+        distance_matrix <- fill_lower_from_upper(distance_matrix)
       }
 
       if( #upper triangular dm --- fill
         !all(distance_matrix[lower.tri(distance_matrix,diag=F)]==0) & all(distance_matrix[upper.tri(distance_matrix,diag=F)]==0)
       ){
         warning("Detected a probable triangular distance matrix as input. Zero entries in upper triangle will be filled based on the lower triangle")
-        dm <- fill_upper_from_lower(dm)
+        distance_matrix <- fill_upper_from_lower(distance_matrix)
       }
 
 
@@ -272,14 +274,14 @@ ReMIXTURE <- R6::R6Class(
   active = list( #functions that look like vars. mostly for getters and setters of privates, since they can perform checks
     distance_matrix = function(in_dm){
       if(missing(in_dm)){
-        dm
+        private$dm
       } else {
         warning("Distance matrix cannot be set after initialisation")
       }
     },
     info_table = function(in_it){
       if(missing(in_it)){
-        return(it)
+        return(private$it)
       } else { #validate and replace private$it
         private$validate_it(in_it)
         #if colour not present, auto-fill
@@ -291,9 +293,5 @@ ReMIXTURE <- R6::R6Class(
       }
     }
   )
-
-
-
-
 )
 
